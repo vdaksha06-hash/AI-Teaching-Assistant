@@ -1,7 +1,5 @@
-import math
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="AI Learning Twin", layout="wide")
 
@@ -72,7 +70,7 @@ def build_student_profile(
     }
 
 
-def calculate_readiness(student_profile: dict, target_profile: dict) -> tuple[int, list[dict]]:
+def calculate_readiness(student_profile: dict, target_profile: dict):
     keys = list(target_profile.keys())
     readiness = round(
         sum(min(student_profile[k] / target_profile[k], 1) for k in keys) / len(keys) * 100
@@ -145,30 +143,19 @@ col4.metric("Top Skill Gap", gaps[0]["Skill"] if gaps else "None")
 
 st.divider()
 
+compare_df = pd.DataFrame(
+    {
+        "Skill": list(student_profile.keys()),
+        "Student": list(student_profile.values()),
+        "Target Role": [target_profile[k] for k in student_profile.keys()],
+    }
+)
+
 left, right = st.columns([1.2, 1])
 
 with left:
-    st.subheader("Profile Comparison")
-    compare_df = pd.DataFrame(
-        {
-            "Skill": list(student_profile.keys()),
-            "Student": list(student_profile.values()),
-            "Target Role": [target_profile[k] for k in student_profile.keys()],
-        }
-    )
-
-    fig1, ax1 = plt.subplots(figsize=(10, 5))
-    x = range(len(compare_df))
-    width = 0.35
-    ax1.bar([i - width / 2 for i in x], compare_df["Student"], width=width, label="Student")
-    ax1.bar([i + width / 2 for i in x], compare_df["Target Role"], width=width, label="Target Role")
-    ax1.set_xticks(list(x))
-    ax1.set_xticklabels(compare_df["Skill"], rotation=20)
-    ax1.set_ylim(0, 100)
-    ax1.set_ylabel("Score")
-    ax1.legend()
-    ax1.set_title("Current Profile vs Future Role")
-    st.pyplot(fig1)
+    st.subheader("Current Profile")
+    st.bar_chart(compare_df.set_index("Skill")[["Student", "Target Role"]])
 
     st.subheader("Skill Gap Analysis")
     gap_df = pd.DataFrame(gaps)
@@ -184,7 +171,7 @@ with right:
 
     if top_recommendations:
         for idx, (skill, item) in enumerate(top_recommendations, start=1):
-            st.markdown(f"**Recommendation {idx}:** {item}  ")
+            st.markdown(f"**Recommendation {idx}:** {item}")
             st.caption(f"Linked skill area: {skill}")
     else:
         st.success("No critical gaps found. Focus on advanced projects and leadership experience.")
@@ -192,12 +179,6 @@ with right:
     st.subheader("Action Plan & Milestones")
     for milestone in action_plan:
         st.write(f"- {milestone}")
-
-    st.subheader("Project Summary")
-    st.write(
-        "This prototype shows how an AI Learning Twin can build a student profile, compare it to a future career model, "
-        "forecast skill gaps, and generate a personalized development path."
-    )
 
 st.divider()
 
