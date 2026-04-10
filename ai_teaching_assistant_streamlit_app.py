@@ -1,340 +1,217 @@
-import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Briefcase, Sparkles, TrendingUp, Target, BookOpen, ShieldCheck } from "lucide-react";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import math
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
 
-const careerSkillModels = {
-  "Data Analyst": {
-    analytics: 92,
-    technology: 85,
-    communication: 72,
-    adaptability: 78,
-    leadership: 48,
-    creativity: 66,
-  },
-  "Product Manager": {
-    analytics: 74,
-    technology: 68,
-    communication: 88,
-    adaptability: 84,
-    leadership: 80,
-    creativity: 76,
-  },
-  "AI Business Strategist": {
-    analytics: 90,
-    technology: 88,
-    communication: 79,
-    adaptability: 90,
-    leadership: 70,
-    creativity: 71,
-  },
-  "UX Researcher": {
-    analytics: 65,
-    technology: 54,
-    communication: 84,
-    adaptability: 74,
-    leadership: 52,
-    creativity: 90,
-  },
-};
+st.set_page_config(page_title="AI Learning Twin", layout="wide")
 
-const learningResources = {
-  analytics: ["Excel & BI Analytics", "SQL Foundations", "Applied Statistics"],
-  technology: ["Python for Business", "AI Literacy", "Cloud & Data Tools"],
-  communication: ["Business Communication", "Presentation Skills", "Stakeholder Storytelling"],
-  adaptability: ["Agile Problem Solving", "Scenario Planning", "Change Readiness"],
-  leadership: ["Project Leadership", "Team Management Basics", "Decision-Making in Uncertainty"],
-  creativity: ["Design Thinking", "Innovation Strategy", "Product Ideation Workshop"],
-};
-
-function clamp(value) {
-  return Math.max(0, Math.min(100, Math.round(value)));
+CAREER_MODELS = {
+    "Data Analyst": {
+        "Analytics": 92,
+        "Technology": 85,
+        "Communication": 72,
+        "Adaptability": 78,
+        "Leadership": 48,
+        "Creativity": 66,
+    },
+    "Product Manager": {
+        "Analytics": 74,
+        "Technology": 68,
+        "Communication": 88,
+        "Adaptability": 84,
+        "Leadership": 80,
+        "Creativity": 76,
+    },
+    "AI Business Strategist": {
+        "Analytics": 90,
+        "Technology": 88,
+        "Communication": 79,
+        "Adaptability": 90,
+        "Leadership": 70,
+        "Creativity": 71,
+    },
+    "UX Researcher": {
+        "Analytics": 65,
+        "Technology": 54,
+        "Communication": 84,
+        "Adaptability": 74,
+        "Leadership": 52,
+        "Creativity": 90,
+    },
 }
 
-function buildStudentProfile({ gpa, studyHours, aiLiteracy, communication, stressManagement, teamwork }) {
-  return {
-    analytics: clamp(gpa * 18 + studyHours * 2 + aiLiteracy * 0.15),
-    technology: clamp(aiLiteracy * 0.85 + studyHours * 1.8),
-    communication: clamp(communication),
-    adaptability: clamp((stressManagement + teamwork) / 2 + studyHours * 0.7),
-    leadership: clamp(teamwork * 0.75 + communication * 0.25),
-    creativity: clamp((communication * 0.35 + stressManagement * 0.25 + aiLiteracy * 0.3) * 0.9),
-  };
+LEARNING_RESOURCES = {
+    "Analytics": ["Excel & Power BI", "SQL Foundations", "Applied Statistics"],
+    "Technology": ["Python for Business", "AI Literacy", "Cloud & Data Tools"],
+    "Communication": ["Business Communication", "Presentation Skills", "Stakeholder Storytelling"],
+    "Adaptability": ["Agile Problem Solving", "Scenario Planning", "Change Readiness"],
+    "Leadership": ["Project Leadership", "Team Management Basics", "Decision-Making in Uncertainty"],
+    "Creativity": ["Design Thinking", "Innovation Strategy", "Product Ideation Workshop"],
 }
 
-function calculateReadiness(student, career) {
-  const target = careerSkillModels[career];
-  const keys = Object.keys(target);
 
-  const gaps = keys.map((key) => ({
-    skill: key,
-    current: student[key],
-    target: target[key],
-    gap: clamp(target[key] - student[key]),
-  }));
+def clamp(value: float) -> int:
+    return max(0, min(100, round(value)))
 
-  const readiness = Math.round(
-    keys.reduce((sum, key) => {
-      const ratio = Math.min(student[key] / target[key], 1);
-      return sum + ratio;
-    }, 0) / keys.length * 100
-  );
 
-  return { readiness, gaps: gaps.sort((a, b) => b.gap - a.gap) };
-}
+def build_student_profile(
+    gpa: float,
+    study_hours: int,
+    ai_literacy: int,
+    communication: int,
+    stress_management: int,
+    teamwork: int,
+) -> dict:
+    return {
+        "Analytics": clamp(gpa * 18 + study_hours * 2 + ai_literacy * 0.15),
+        "Technology": clamp(ai_literacy * 0.85 + study_hours * 1.8),
+        "Communication": clamp(communication),
+        "Adaptability": clamp((stress_management + teamwork) / 2 + study_hours * 0.7),
+        "Leadership": clamp(teamwork * 0.75 + communication * 0.25),
+        "Creativity": clamp((communication * 0.35 + stress_management * 0.25 + ai_literacy * 0.3) * 0.9),
+    }
 
-function getMilestones(gaps) {
-  const priority = gaps.filter((g) => g.gap > 0).slice(0, 3);
-  if (priority.length === 0) {
-    return [
-      "Maintain your current profile with advanced projects.",
-      "Add an industry certification to strengthen marketability.",
-      "Build a portfolio demonstrating real-world readiness.",
-    ];
-  }
-  return priority.map((item, index) => `Phase ${index + 1}: Improve ${item.skill} through ${learningResources[item.skill]?.[0] || "targeted learning"}.`);
-}
 
-export default function AILearningTwinPrototype() {
-  const [name, setName] = useState("Daksha");
-  const [career, setCareer] = useState("AI Business Strategist");
-  const [gpa, setGpa] = useState(3.8);
-  const [studyHours, setStudyHours] = useState([18]);
-  const [aiLiteracy, setAiLiteracy] = useState([72]);
-  const [communication, setCommunication] = useState([76]);
-  const [stressManagement, setStressManagement] = useState([68]);
-  const [teamwork, setTeamwork] = useState([80]);
+def calculate_readiness(student_profile: dict, target_profile: dict) -> tuple[int, list[dict]]:
+    keys = list(target_profile.keys())
+    readiness = round(
+        sum(min(student_profile[k] / target_profile[k], 1) for k in keys) / len(keys) * 100
+    )
 
-  const studentProfile = useMemo(
-    () =>
-      buildStudentProfile({
-        gpa,
-        studyHours: studyHours[0],
-        aiLiteracy: aiLiteracy[0],
-        communication: communication[0],
-        stressManagement: stressManagement[0],
-        teamwork: teamwork[0],
-      }),
-    [gpa, studyHours, aiLiteracy, communication, stressManagement, teamwork]
-  );
+    gaps = []
+    for key in keys:
+        gap = max(0, target_profile[key] - student_profile[key])
+        gaps.append(
+            {
+                "Skill": key,
+                "Current": student_profile[key],
+                "Target": target_profile[key],
+                "Gap": gap,
+            }
+        )
 
-  const result = useMemo(() => calculateReadiness(studentProfile, career), [studentProfile, career]);
+    gaps.sort(key=lambda item: item["Gap"], reverse=True)
+    return readiness, gaps
 
-  const radarData = Object.keys(studentProfile).map((key) => ({
-    skill: key.charAt(0).toUpperCase() + key.slice(1),
-    student: studentProfile[key],
-    target: careerSkillModels[career][key],
-  }));
 
-  const gapBars = result.gaps.map((g) => ({
-    skill: g.skill.charAt(0).toUpperCase() + g.skill.slice(1),
-    gap: g.gap,
-  }));
+def build_action_plan(gaps: list[dict]) -> list[str]:
+    top_gaps = [gap for gap in gaps if gap["Gap"] > 0][:3]
+    if not top_gaps:
+        return [
+            "Maintain your current profile with advanced projects.",
+            "Add an industry certification to strengthen employability.",
+            "Build a portfolio to demonstrate workforce readiness.",
+        ]
 
-  const topLearningRecommendations = result.gaps
-    .filter((g) => g.gap > 0)
-    .slice(0, 3)
-    .flatMap((g) => learningResources[g.skill]?.slice(0, 2) || []);
+    phases = []
+    for index, gap in enumerate(top_gaps, start=1):
+        resource = LEARNING_RESOURCES[gap["Skill"]][0]
+        phases.append(f"Phase {index}: Improve {gap['Skill']} through {resource}.")
+    return phases
 
-  const milestones = getMilestones(result.gaps);
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 p-6 md:p-10">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-200">
-              <Sparkles className="h-4 w-4" /> AI Learning Twin Prototype
-            </div>
-            <h1 className="text-4xl font-bold mt-3 tracking-tight">Predictive Learning & Career Readiness Dashboard</h1>
-            <p className="text-slate-300 mt-2 max-w-3xl">
-              This prototype demonstrates how an AI Learning Twin could model a student profile, compare it against a future career target,
-              identify skill gaps, and generate a personalized action plan.
-            </p>
-          </div>
-          <Badge className="text-base px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
-            Readiness Score: {result.readiness}%
-          </Badge>
-        </div>
+st.title("🧠 AI Learning Twin")
+st.caption("A Streamlit prototype for predicting future skill gaps and career readiness.")
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-1 bg-slate-900 border-slate-800 rounded-3xl shadow-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Brain className="h-5 w-5 text-cyan-300" /> Student Input Profile</CardTitle>
-              <CardDescription>Enter baseline learner data to generate the AI Learning Twin.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-slate-950 border-slate-700" />
-              </div>
+with st.sidebar:
+    st.header("Student Input")
+    name = st.text_input("Name", value="Daksha")
+    career = st.selectbox("Target Career", list(CAREER_MODELS.keys()), index=2)
+    gpa = st.slider("GPA", 0.0, 4.3, 3.8, 0.1)
+    study_hours = st.slider("Weekly Study Hours", 0, 40, 18)
+    ai_literacy = st.slider("AI / Tech Literacy", 0, 100, 72)
+    communication = st.slider("Communication", 0, 100, 76)
+    stress_management = st.slider("Stress Management", 0, 100, 68)
+    teamwork = st.slider("Teamwork", 0, 100, 80)
 
-              <div className="space-y-2">
-                <Label>Target Career</Label>
-                <Select value={career} onValueChange={setCareer}>
-                  <SelectTrigger className="bg-slate-950 border-slate-700">
-                    <SelectValue placeholder="Select a career" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(careerSkillModels).map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+student_profile = build_student_profile(
+    gpa=gpa,
+    study_hours=study_hours,
+    ai_literacy=ai_literacy,
+    communication=communication,
+    stress_management=stress_management,
+    teamwork=teamwork,
+)
 
-              <div className="space-y-2">
-                <Label>GPA</Label>
-                <Input type="number" min="0" max="4.3" step="0.1" value={gpa} onChange={(e) => setGpa(Number(e.target.value))} className="bg-slate-950 border-slate-700" />
-              </div>
+target_profile = CAREER_MODELS[career]
+readiness, gaps = calculate_readiness(student_profile, target_profile)
+action_plan = build_action_plan(gaps)
 
-              {[
-                ["Weekly Study Hours", studyHours, setStudyHours],
-                ["AI / Tech Literacy", aiLiteracy, setAiLiteracy],
-                ["Communication", communication, setCommunication],
-                ["Stress Management", stressManagement, setStressManagement],
-                ["Teamwork", teamwork, setTeamwork],
-              ].map(([label, value, setter]) => (
-                <div key={label} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <Label>{label}</Label>
-                    <span className="text-slate-300">{value[0]}</span>
-                  </div>
-                  <Slider value={value} onValueChange={setter} max={100} step={1} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Student", name if name.strip() else "Learner")
+col2.metric("Target Career", career)
+col3.metric("Readiness Score", f"{readiness}%")
+col4.metric("Top Skill Gap", gaps[0]["Skill"] if gaps else "None")
 
-          <div className="lg:col-span-2 grid gap-6">
-            <div className="grid md:grid-cols-4 gap-4">
-              {[
-                { title: "Target Role", value: career, icon: Briefcase },
-                { title: "Top Gap", value: result.gaps[0]?.skill || "None", icon: Target },
-                { title: "Recommended Path", value: topLearningRecommendations[0] || "Advanced projects", icon: BookOpen },
-                { title: "Risk Level", value: result.readiness >= 80 ? "Low" : result.readiness >= 60 ? "Moderate" : "High", icon: ShieldCheck },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Card key={item.title} className="bg-slate-900 border-slate-800 rounded-3xl">
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-slate-400">{item.title}</p>
-                        <Icon className="h-5 w-5 text-cyan-300" />
-                      </div>
-                      <p className="font-semibold text-lg leading-tight">{item.value}</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+st.divider()
 
-            <div className="grid xl:grid-cols-2 gap-6">
-              <Card className="bg-slate-900 border-slate-800 rounded-3xl">
-                <CardHeader>
-                  <CardTitle>Profile vs Future Role</CardTitle>
-                  <CardDescription>Your current learning twin compared to the target career model.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData}>
-                      <PolarGrid stroke="#334155" />
-                      <PolarAngleAxis dataKey="skill" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                      <PolarRadiusAxis tick={{ fill: "#94a3b8", fontSize: 10 }} domain={[0, 100]} />
-                      <Radar name="Student" dataKey="student" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.35} />
-                      <Radar name="Career Target" dataKey="target" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.15} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+left, right = st.columns([1.2, 1])
 
-              <Card className="bg-slate-900 border-slate-800 rounded-3xl">
-                <CardHeader>
-                  <CardTitle>Skill Gap Forecast</CardTitle>
-                  <CardDescription>Highest-priority gaps that need intervention.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={gapBars}>
-                      <XAxis dataKey="skill" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                      <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <Tooltip />
-                      <Bar dataKey="gap" radius={[10, 10, 0, 0]} fill="#22d3ee" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
+with left:
+    st.subheader("Profile Comparison")
+    compare_df = pd.DataFrame(
+        {
+            "Skill": list(student_profile.keys()),
+            "Student": list(student_profile.values()),
+            "Target Role": [target_profile[k] for k in student_profile.keys()],
+        }
+    )
 
-        <div className="grid xl:grid-cols-3 gap-6">
-          <Card className="xl:col-span-1 bg-slate-900 border-slate-800 rounded-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-cyan-300" /> Readiness Breakdown</CardTitle>
-              <CardDescription>How prepared {name || "the student"} is for the selected future role.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Overall Career Readiness</span>
-                  <span>{result.readiness}%</span>
-                </div>
-                <Progress value={result.readiness} className="h-3" />
-              </div>
-              {result.gaps.slice(0, 4).map((item) => (
-                <div key={item.skill} className="space-y-1">
-                  <div className="flex justify-between text-sm capitalize">
-                    <span>{item.skill}</span>
-                    <span>{item.current}/{item.target}</span>
-                  </div>
-                  <Progress value={Math.min((item.current / item.target) * 100, 100)} className="h-2" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+    fig1, ax1 = plt.subplots(figsize=(10, 5))
+    x = range(len(compare_df))
+    width = 0.35
+    ax1.bar([i - width / 2 for i in x], compare_df["Student"], width=width, label="Student")
+    ax1.bar([i + width / 2 for i in x], compare_df["Target Role"], width=width, label="Target Role")
+    ax1.set_xticks(list(x))
+    ax1.set_xticklabels(compare_df["Skill"], rotation=20)
+    ax1.set_ylim(0, 100)
+    ax1.set_ylabel("Score")
+    ax1.legend()
+    ax1.set_title("Current Profile vs Future Role")
+    st.pyplot(fig1)
 
-          <Card className="xl:col-span-1 bg-slate-900 border-slate-800 rounded-3xl">
-            <CardHeader>
-              <CardTitle>Recommended Learning Path</CardTitle>
-              <CardDescription>Targeted interventions generated by the AI Learning Twin.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {topLearningRecommendations.length ? topLearningRecommendations.map((item, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-sm text-cyan-300 mb-1">Recommendation {idx + 1}</div>
-                  <div className="font-medium">{item}</div>
-                </div>
-              )) : (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">No critical gaps found. Focus on advanced projects and leadership exposure.</div>
-              )}
-            </CardContent>
-          </Card>
+    st.subheader("Skill Gap Analysis")
+    gap_df = pd.DataFrame(gaps)
+    st.dataframe(gap_df, use_container_width=True, hide_index=True)
 
-          <Card className="xl:col-span-1 bg-slate-900 border-slate-800 rounded-3xl">
-            <CardHeader>
-              <CardTitle>Action Plan & Milestones</CardTitle>
-              <CardDescription>A phased roadmap from education to career readiness.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {milestones.map((item, idx) => (
-                <div key={idx} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                  <div className="text-sm text-cyan-300 mb-1">Milestone {idx + 1}</div>
-                  <div className="font-medium">{item}</div>
-                </div>
-              ))}
-              <Button className="w-full rounded-2xl mt-2">Generate Updated Twin Report</Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
+with right:
+    st.subheader("Recommended Learning Path")
+    top_recommendations = []
+    for gap in gaps[:3]:
+        if gap["Gap"] > 0:
+            for item in LEARNING_RESOURCES[gap["Skill"]][:2]:
+                top_recommendations.append((gap["Skill"], item))
+
+    if top_recommendations:
+        for idx, (skill, item) in enumerate(top_recommendations, start=1):
+            st.markdown(f"**Recommendation {idx}:** {item}  ")
+            st.caption(f"Linked skill area: {skill}")
+    else:
+        st.success("No critical gaps found. Focus on advanced projects and leadership experience.")
+
+    st.subheader("Action Plan & Milestones")
+    for milestone in action_plan:
+        st.write(f"- {milestone}")
+
+    st.subheader("Project Summary")
+    st.write(
+        "This prototype shows how an AI Learning Twin can build a student profile, compare it to a future career model, "
+        "forecast skill gaps, and generate a personalized development path."
+    )
+
+st.divider()
+
+st.subheader("Workforce Readiness Report")
+if readiness >= 80:
+    st.success(f"{name} is strongly aligned with the {career} pathway.")
+elif readiness >= 60:
+    st.warning(f"{name} is moderately aligned with the {career} pathway and would benefit from targeted upskilling.")
+else:
+    st.error(f"{name} currently has significant gaps for the {career} pathway and needs structured intervention.")
+
+st.download_button(
+    label="Download Readiness Report (CSV)",
+    data=gap_df.to_csv(index=False),
+    file_name="ai_learning_twin_report.csv",
+    mime="text/csv",
+)
